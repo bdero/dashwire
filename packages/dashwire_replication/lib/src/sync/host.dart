@@ -112,7 +112,8 @@ final class ReplicationHost implements ReplicaBinding {
     );
   }
 
-  /// Spawns [replica] under a fresh id owned by [owner].
+  /// Spawns [replica] under a fresh id (or [id], for hydration) owned by
+  /// [owner].
   ///
   /// With [alwaysRelevant] false the replica only reaches peers through
   /// [relevantForPeer], [filters], or [dependents].
@@ -121,8 +122,9 @@ final class ReplicationHost implements ReplicaBinding {
     int owner = Session.serverPeerId,
     bool alwaysRelevant = true,
     double importance = 1,
+    NetId? id,
   }) {
-    final id = _ids.next();
+    id ??= _ids.next();
     replica
       ..id = id
       ..owner = owner

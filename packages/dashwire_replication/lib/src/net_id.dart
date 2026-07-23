@@ -35,13 +35,27 @@ final class NetId {
 
 /// Mints [NetId]s from one session.
 final class NetIdAllocator {
-  NetIdAllocator(this.session);
+  NetIdAllocator(this._session, {int startIndex = 0}) : _nextIndex = startIndex;
 
   /// A session from a cryptographic random source.
-  NetIdAllocator.random() : session = Random.secure().nextInt(0x100000000);
+  NetIdAllocator.random()
+    : _session = Random.secure().nextInt(0x100000000),
+      _nextIndex = 0;
 
-  final int session;
-  int _nextIndex = 0;
+  int _session;
+  int _nextIndex;
 
-  NetId next() => NetId(session, _nextIndex++);
+  int get session => _session;
+
+  /// The index the next [next] call will mint.
+  int get nextIndex => _nextIndex;
+
+  /// Rewinds to persisted state (room hydration), so post-restore ids never
+  /// collide with persisted ones.
+  void restore({required int session, required int nextIndex}) {
+    _session = session;
+    _nextIndex = nextIndex;
+  }
+
+  NetId next() => NetId(_session, _nextIndex++);
 }

@@ -1,0 +1,13 @@
+name: arena_example
+description: Top-down multiplayer arena, Dart room servers plus a canvas web client.
+version: 0.0.1
+publish_to: none
+environment:
+  sdk: ^3.10.0
+resolution: workspace
+dependencies:
+  dashwire: ^0.0.1
+  dashwire_replication: ^0.0.1
+  web: ^1.1.0
+dev_dependencies:
+  lints: ^6.0.0

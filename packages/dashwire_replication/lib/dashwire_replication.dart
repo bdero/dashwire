@@ -19,6 +19,7 @@ export 'src/schema.dart'
         StructCodec,
         encodeAllFields,
         voidCodec;
+export 'src/room/room.dart' show MemoryRoomStore, Room, RoomStore;
 export 'src/sync/client.dart' show ReplicationClient;
 export 'src/sync/host.dart' show HostConfig, ReplicationHost;
 export 'src/sync/relevancy.dart' show RelevancyFilter, SpatialGridFilter;
