@@ -6,6 +6,9 @@ repository: https://github.com/bdero/dashwire
 environment:
   sdk: ^3.10.0
 resolution: workspace
+dependencies:
+  web: ^1.1.0
 dev_dependencies:
   lints: ^6.0.0
+  stream_channel: ^2.1.0
   test: ^1.26.0

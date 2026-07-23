@@ -1,0 +1,11 @@
+name: echo_example
+description: Session echo demo, dart:io server with console and browser clients.
+version: 0.0.1
+publish_to: none
+environment:
+  sdk: ^3.10.0
+resolution: workspace
+dependencies:
+  dashwire: ^0.0.1
+dev_dependencies:
+  lints: ^6.0.0

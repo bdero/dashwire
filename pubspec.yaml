@@ -6,3 +6,4 @@ workspace:
   - packages/dashwire
   - packages/dashwire_udp
   - packages/dashwire_replication
+  - examples/echo

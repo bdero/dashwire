@@ -11,6 +11,7 @@ export 'src/transport/loopback.dart' show LoopbackConnection;
 export 'src/transport/simulator.dart'
     show SimulatedConditions, SimulatorConnection;
 export 'src/transport/transport.dart' show Channel, NetMessage, WireConnection;
+export 'src/transport/websocket/websocket.dart' show connectWebSocket;
 export 'src/wire/byte_reader.dart' show ByteReader;
 export 'src/wire/byte_writer.dart' show ByteWriter;
 export 'src/wire/hash.dart' show fnv1a32;
