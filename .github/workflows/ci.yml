@@ -22,6 +22,8 @@ jobs:
       - run: dart analyze --fatal-infos
       - run: dart test
         working-directory: packages/dashwire
+      - run: dart test
+        working-directory: packages/dashwire_udp
 
   web:
     runs-on: ubuntu-latest
