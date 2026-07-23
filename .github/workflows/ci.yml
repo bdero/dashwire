@@ -24,6 +24,8 @@ jobs:
         working-directory: packages/dashwire
       - run: dart test
         working-directory: packages/dashwire_udp
+      - run: dart test
+        working-directory: packages/dashwire_replication
 
   web:
     runs-on: ubuntu-latest
@@ -37,3 +39,5 @@ jobs:
       - run: dart compile wasm -o "${{ runner.temp }}/smoke.wasm" packages/dashwire/tool/web_smoke.dart
       - run: dart test -p chrome
         working-directory: packages/dashwire
+      - run: dart test -p chrome
+        working-directory: packages/dashwire_replication
