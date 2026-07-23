@@ -1,0 +1,8 @@
+name: dashwire_workspace
+publish_to: none
+environment:
+  sdk: ^3.10.0
+workspace:
+  - packages/dashwire
+  - packages/dashwire_udp
+  - packages/dashwire_replication
