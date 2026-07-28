@@ -1,8 +1,11 @@
 import 'package:dashwire/dashwire.dart';
 import 'package:meta/meta.dart';
 
+import 'dart:typed_data';
+
 import '../net_id.dart';
 import '../schema.dart';
+import 'input.dart';
 import 'messages.dart';
 
 /// The receiving end of replication.
@@ -32,6 +35,7 @@ final class ReplicationClient implements ReplicaBinding {
   final Map<NetId, Replica> _replicas = {};
   final Map<NetId, int> _flushedVersion = {};
   int _writeSeq = 0;
+  ClientInputSender? _input;
 
   Map<NetId, Replica> get replicas => Map.unmodifiable(_replicas);
 
@@ -39,6 +43,30 @@ final class ReplicationClient implements ReplicaBinding {
 
   @override
   int get localPeerId => session.peerId;
+
+  ClientInputSender get _inputSender => _input ??= ClientInputSender(session);
+
+  /// The server tick a call to [sendInput] would target by default, one-way
+  /// latency plus the adaptive send-ahead lead.
+  int nextInputTick() => _inputSender.nextTick();
+
+  /// Sends this client's input for a server tick.
+  ///
+  /// [payload] is game-defined (the input struct for that tick). Defaults to
+  /// [nextInputTick]. The sender resends a short tail on the unreliable
+  /// channel so a dropped packet self-heals, and adapts its lead from the
+  /// server's ack. Consumed authoritatively by the room's tick via
+  /// `ReplicationHost.consumeInput`.
+  void sendInput(Uint8List payload, {int? tick}) =>
+      _inputSender.send(tick ?? _inputSender.nextTick(), payload);
+
+  /// Highest input tick the server has confirmed applying, 0 before any ack.
+  /// The reconciliation baseline, replay resumes just after this tick.
+  int get lastAppliedInputTick => _input?.lastAppliedTick ?? 0;
+
+  /// Buffered input ticks the server holds ahead of what it has applied, as
+  /// of the last ack. A healthy cushion sits near the sender's target depth.
+  int get inputBufferDepth => _input?.bufferDepth ?? 0;
 
   void _handleMessage(NetMessage message) {
     final r = ByteReader(message.payload);
@@ -101,6 +129,8 @@ final class ReplicationClient implements ReplicaBinding {
         if (index >= replica.rpcs.length) return;
         final endpoint = replica.rpcs[index];
         endpoint.invokeErased(Session.serverPeerId, endpoint.decodeArgs(r));
+      case MessageKind.inputAck:
+        _input?.handleAck(r);
       default:
       // Unknown kinds are ignored for forward compatibility.
     }
