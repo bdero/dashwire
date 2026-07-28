@@ -1,7 +1,6 @@
 name: dashwire
 description: Multiplayer networking for Dart games. Transport, session, and tick core.
-version: 0.0.1
-publish_to: none
+version: 0.1.0
 repository: https://github.com/bdero/dashwire
 environment:
   sdk: ^3.10.0

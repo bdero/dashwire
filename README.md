@@ -2,13 +2,11 @@
 
 Multiplayer networking for Dart games. Engine-agnostic transport, replication, and rooms, usable from any Dart or Flutter project.
 
-Private while under initial development; nothing here is published yet.
-
-| Package | What it is |
-| --- | --- |
-| `packages/dashwire` | Transport abstraction, channels, session/handshake, clock and tick sync, loopback and WebSocket transports, network simulator. |
-| `packages/dashwire_udp` | Reliability layer over UDP (sequencing, acks, fragmentation) plus LAN discovery. |
-| `packages/dashwire_replication` | Replicated-property schema, snapshot/delta sync, relevancy, spawning, RPCs, rooms. |
+| Package | pub.dev | What it is |
+| --- | --- | --- |
+| `dashwire` | [![pub](https://img.shields.io/pub/v/dashwire.svg)](https://pub.dev/packages/dashwire) | Transport abstraction, channels, session/handshake, clock and tick sync, loopback and WebSocket transports, network simulator. |
+| `dashwire_udp` | [![pub](https://img.shields.io/pub/v/dashwire_udp.svg)](https://pub.dev/packages/dashwire_udp) | Reliability layer over UDP (sequencing, acks, fragmentation) plus LAN discovery. |
+| `dashwire_replication` | [![pub](https://img.shields.io/pub/v/dashwire_replication.svg)](https://pub.dev/packages/dashwire_replication) | Replicated-property schema, snapshot/delta sync, relevancy, spawning, RPCs, rooms. |
 
 ## Developing
 
