@@ -23,4 +23,5 @@ export 'src/room/room.dart' show MemoryRoomStore, Room, RoomStore;
 export 'src/transform_replica.dart' show TransformReplica;
 export 'src/sync/client.dart' show ReplicationClient;
 export 'src/sync/host.dart' show HostConfig, ReplicationHost;
+export 'src/sync/prediction.dart' show Divergence, Predictor, SimulateStep;
 export 'src/sync/relevancy.dart' show RelevancyFilter, SpatialGridFilter;
