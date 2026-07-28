@@ -52,6 +52,10 @@ final class Room {
 
   Iterable<Session> get sessions => _sessions;
 
+  /// The authoritative input [peerId] sent for [tick], for use inside
+  /// [onTick]. See `ReplicationHost.consumeInput`.
+  Uint8List? input(int peerId, int tick) => host.consumeInput(peerId, tick);
+
   /// Handshakes [connection] into this room.
   Future<Session?> admit(WireConnection connection) async {
     final session = await _listener.accept(connection);

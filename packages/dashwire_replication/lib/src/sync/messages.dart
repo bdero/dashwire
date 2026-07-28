@@ -25,4 +25,14 @@ abstract final class MessageKind {
 
   /// netId, varint rpcIndex, args. Either direction.
   static const int rpcCall = 7;
+
+  /// varint count, then per entry varint tick, length-prefixed payload
+  /// (ticks ascending). Client to server, unreliable, redundant tail. The
+  /// payload is game-defined; encode one-frame events as counters, not
+  /// booleans, so a resent command reproduces them.
+  static const int inputCommand = 8;
+
+  /// varint lastAppliedTick, varint bufferDepth. Server to client,
+  /// unreliable. Acks input progress and feeds the client's send-ahead lead.
+  static const int inputAck = 9;
 }

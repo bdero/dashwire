@@ -1,8 +1,11 @@
+import 'dart:typed_data';
+
 import 'package:dashwire/dashwire.dart';
 import 'package:meta/meta.dart';
 
 import '../net_id.dart';
 import '../schema.dart';
+import 'input.dart';
 import 'messages.dart';
 import 'relevancy.dart';
 
@@ -57,6 +60,9 @@ class _Peer {
 
   /// Latest applied owner-write sequence per replica.
   final Map<NetId, int> ownerWriteSeq = {};
+
+  /// This connection's tick-indexed input command buffer.
+  final ServerInputBuffer input = ServerInputBuffer();
 }
 
 /// The authoritative end of replication.
@@ -101,6 +107,19 @@ final class ReplicationHost implements ReplicaBinding {
 
   /// Bytes of the largest snapshot sent during the last [tick].
   int get debugLastSnapshotBytes => _lastSnapshotBytes;
+
+  /// The authoritative input a connection sent for [tick].
+  ///
+  /// Returns the game-defined payload the peer stamped for [tick], or the
+  /// last one it applied when that tick is missing (hold-last, so a dropped
+  /// packet never stalls the sim), or null before the peer sends any input.
+  /// Call once per peer per fixed tick from the room's simulation callback.
+  Uint8List? consumeInput(int peerId, int tick) =>
+      _peers[peerId]?.input.consume(tick);
+
+  /// Whether the last [consumeInput] for [peerId] had to hold the previous
+  /// input because the exact tick had not arrived (input starvation).
+  bool inputStarved(int peerId) => _peers[peerId]?.input.starvedLast ?? false;
 
   /// Starts replicating to [session] and stops when it closes.
   void attach(Session session) {
@@ -181,7 +200,17 @@ final class ReplicationHost implements ReplicaBinding {
       _flushSpawns(peer, relevant);
       _flushReliableUpdates(peer);
       _flushSnapshot(peer, tick);
+      _flushInputAck(peer);
     }
+  }
+
+  void _flushInputAck(_Peer peer) {
+    // Only peers that predict (send input) need the ack and the depth-driven
+    // pacing feedback; silent for pure viewers.
+    if (!peer.input.isActive) return;
+    final w = ByteWriter(12);
+    peer.input.writeAck(w);
+    peer.session.sendApp(Channel.unreliable, w.toBytes());
   }
 
   void _flushSpawns(_Peer peer, Set<NetId> relevant) {
@@ -338,6 +367,8 @@ final class ReplicationHost implements ReplicaBinding {
         _handleOwnerWrite(peer, r);
       case MessageKind.rpcCall:
         _handleRpc(peer, r);
+      case MessageKind.inputCommand:
+        peer.input.ingest(r);
       default:
       // Clients send nothing else; ignore unknown kinds.
     }
