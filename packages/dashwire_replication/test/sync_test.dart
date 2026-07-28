@@ -284,4 +284,35 @@ void main() {
       expect(matched, 200);
     }
   });
+
+  test(
+    'priority scale packs favored entities first under a tight budget',
+    () async {
+      const config = HostConfig(snapshotBytesPerTick: 20);
+      final net = await _network(1, config: config);
+      // Favor B strongly for this peer, the distance-falloff generalization.
+      final peerId = net.clients[0].localPeerId;
+      late final NetId idB;
+      net.host.priorityScale = (peer, replica) =>
+          replica.id == idB && peer == peerId ? 20.0 : 1.0;
+
+      final a = DotReplica();
+      final b = DotReplica();
+      net.host.spawn(a);
+      idB = net.host.spawn(b);
+      await net.step(2);
+
+      // Both move every tick; the budget fits only one entry per tick.
+      for (var i = 0; i < 6; i++) {
+        a.position.value = (i + 1.0, 0.0, 0.0);
+        b.position.value = (i + 1.0, 0.0, 0.0);
+        await net.step();
+      }
+
+      final clientA = net.clients[0].replicaById(a.id!) as DotReplica;
+      final clientB = net.clients[0].replicaById(b.id!) as DotReplica;
+      // B (favored) tracks the latest; A lags far behind under starvation.
+      expect(clientB.position.value.$1, greaterThan(clientA.position.value.$1));
+    },
+  );
 }

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `Predictor<I,S>`, a generic client-side prediction engine with input-replay reconciliation (advance per tick, roll back to an authoritative state and replay the not-yet-applied inputs).
+- `LagCompensation<K,V>`, a server-side per-tick history that rewinds tracked entities to the client-rendered tick (interpolated, capped) for lag-compensated hit resolution.
+- `ReplicationHost.priorityScale`, a per-connection snapshot-priority multiplier (the distance-falloff generalization); the priority accumulator is now per connection so scaling stays starvation-fair.
 - Tick-indexed input commands, `ReplicationClient.sendInput` with a redundant unreliable tail that self-heals dropped packets, `ReplicationHost.consumeInput`/`Room.input` for authoritative per-tick consumption with hold-last on a miss, and server-driven send-ahead pacing from a per-connection buffer-depth ack. The substrate for client prediction and input-replay reconciliation.
 
 ## 0.1.0
