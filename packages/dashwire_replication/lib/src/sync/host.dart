@@ -29,7 +29,6 @@ class _HostReplica {
   final Replica replica;
   final double importance;
   bool alwaysRelevant;
-  double accumulatedPriority = 0;
 }
 
 class _Peer {
@@ -60,6 +59,11 @@ class _Peer {
 
   /// Latest applied owner-write sequence per replica.
   final Map<NetId, int> ownerWriteSeq = {};
+
+  /// Priority accrued per replica since it last packed into a snapshot for
+  /// this connection, importance times any per-connection scale. Resets on
+  /// send, so a starved replica climbs monotonically until it fits.
+  final Map<NetId, double> accumulated = {};
 
   /// This connection's tick-indexed input command buffer.
   final ServerInputBuffer input = ServerInputBuffer();
@@ -95,6 +99,13 @@ final class ReplicationHost implements ReplicaBinding {
 
   /// Child ids replicated iff their parent is relevant.
   final Map<NetId, Set<NetId>> dependents = {};
+
+  /// Optional per-connection priority multiplier applied when packing
+  /// snapshots, the general form of a distance falloff (nearer entities pack
+  /// first). Returns a factor on a replica's accumulated priority for a peer;
+  /// 1 leaves ordering unchanged. Starvation accrual is unaffected, so a
+  /// scaled-down entity still eventually sends.
+  double Function(int peerId, Replica replica)? priorityScale;
 
   int _lastSnapshotBytes = 0;
 
@@ -169,6 +180,7 @@ final class ReplicationHost implements ReplicaBinding {
       peer.ackedVersion.remove(id);
       peer.reliableVersion.remove(id);
       peer.ownerWriteSeq.remove(id);
+      peer.accumulated.remove(id);
     }
   }
 
@@ -223,6 +235,7 @@ final class ReplicationHost implements ReplicaBinding {
       peer.known.remove(id);
       peer.ackedVersion.remove(id);
       peer.reliableVersion.remove(id);
+      peer.accumulated.remove(id);
       _sendDespawn(peer, id);
     }
   }
@@ -283,7 +296,7 @@ final class ReplicationHost implements ReplicaBinding {
     final peerId = peer.session.peerId;
 
     // Candidates, known replicas with undelivered stream-field changes.
-    final candidates = <(_HostReplica, int)>[];
+    final candidates = <(_HostReplica, int, double)>[];
     for (final id in peer.known) {
       final record = _replicas[id]!;
       final replica = record.replica;
@@ -298,13 +311,13 @@ final class ReplicationHost implements ReplicaBinding {
         }
       }
       if (mask == 0) continue;
-      record.accumulatedPriority += record.importance;
-      candidates.add((record, mask));
+      final scale = priorityScale?.call(peerId, replica) ?? 1.0;
+      final acc = (peer.accumulated[id] ?? 0) + record.importance * scale;
+      peer.accumulated[id] = acc;
+      candidates.add((record, mask, acc));
     }
     if (candidates.isEmpty) return;
-    candidates.sort(
-      (a, b) => b.$1.accumulatedPriority.compareTo(a.$1.accumulatedPriority),
-    );
+    candidates.sort((a, b) => b.$3.compareTo(a.$3));
 
     final w = ByteWriter(256)
       ..writeU8(MessageKind.snapshot)
@@ -314,7 +327,7 @@ final class ReplicationHost implements ReplicaBinding {
     final sent = <(NetId, int)>[];
     final body = ByteWriter(512);
 
-    for (final (record, mask) in candidates) {
+    for (final (record, mask, _) in candidates) {
       final replica = record.replica;
       final id = replica.id!;
       entryWriter.reset();
@@ -333,7 +346,7 @@ final class ReplicationHost implements ReplicaBinding {
         ..writeBytes(header.toBytes())
         ..writeBytes(entryBytes);
       sent.add((id, replica.version));
-      record.accumulatedPriority = 0;
+      peer.accumulated[id] = 0;
       count++;
     }
     if (count == 0) return;
