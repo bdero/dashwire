@@ -80,6 +80,20 @@ void main() {
     expect(p.currentTick, 7);
   });
 
+  test('stateAt returns retained predictions and null outside them', () {
+    final p = _predictor()..reset(0, 0);
+    p
+      ..advance(1, 2)
+      ..advance(2, 2);
+    expect(p.stateAt(1), 2);
+    expect(p.stateAt(2), 4);
+    expect(p.stateAt(0), isNull);
+    expect(p.stateAt(3), isNull);
+    p.reconcile(1, 2);
+    expect(p.stateAt(1), isNull); // acked history is dropped
+    expect(p.stateAt(2), 4);
+  });
+
   test('history is bounded', () {
     final p = Predictor<double, double>(
       step: (s, i, dt) => s + i,

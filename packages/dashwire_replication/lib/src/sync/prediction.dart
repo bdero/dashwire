@@ -56,6 +56,11 @@ final class Predictor<I, S> {
   /// Ticks predicted ahead of the last reconciled/authoritative tick.
   int get pendingTicks => _history.length;
 
+  /// The retained predicted state at [tick], or null when outside the
+  /// history. Lets callers seed a reconcile base from their own prediction
+  /// (a physics world snapshot at the acked tick, say).
+  S? stateAt(int tick) => _predictedStateAt(tick);
+
   /// Seeds the predictor with an authoritative [state] at [tick]. Clears any
   /// prediction history.
   void reset(int tick, S state) {
