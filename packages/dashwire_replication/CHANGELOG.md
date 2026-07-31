@@ -6,6 +6,8 @@
 - `LagCompensation<K,V>`, a server-side per-tick history that rewinds tracked entities to the client-rendered tick (interpolated, capped) for lag-compensated hit resolution.
 - `ReplicationHost.priorityScale`, a per-connection snapshot-priority multiplier (the distance-falloff generalization); the priority accumulator is now per connection so scaling stays starvation-fair.
 - Tick-indexed input commands, `ReplicationClient.sendInput` with a redundant unreliable tail that self-heals dropped packets, `ReplicationHost.consumeInput`/`Room.input` for authoritative per-tick consumption with hold-last on a miss, and server-driven send-ahead pacing from a per-connection buffer-depth ack. The substrate for client prediction and input-replay reconciliation.
+- Fixed quantizing codec ids rendering differently under dart2js, which made a native host and a web client disagree on the schema hash and reject the join.
+- Fixed a leave race where despawning the leaver's entity in a room's `onLeave` sent on its closed connection.
 
 ## 0.1.0
 
