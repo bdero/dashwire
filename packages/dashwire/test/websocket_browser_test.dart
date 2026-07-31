@@ -27,7 +27,9 @@ Future<void> hybridMain(StreamChannel<Object?> channel) async {
 void main() {
   test('browser client talks to a dart:io server', () async {
     final channel = spawnHybridCode(_serverCode);
-    final port = await channel.stream.first as int;
+    // The hybrid channel delivers JS numbers, which dart2wasm sees as
+    // doubles; go through num so the cast holds on every compiler.
+    final port = (await channel.stream.first as num).toInt();
 
     final connection = await connectWebSocket(
       Uri.parse('ws://127.0.0.1:$port'),
@@ -65,7 +67,9 @@ Future<void> hybridMain(StreamChannel<Object?> channel) async {
   channel.sink.add(server.port);
 }
 ''');
-    final port = await channel.stream.first as int;
+    // The hybrid channel delivers JS numbers, which dart2wasm sees as
+    // doubles; go through num so the cast holds on every compiler.
+    final port = (await channel.stream.first as num).toInt();
     final session = await connectSession(
       await connectWebSocket(Uri.parse('ws://127.0.0.1:$port')),
       schemaHash: 0x7e57,
