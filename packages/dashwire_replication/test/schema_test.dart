@@ -23,6 +23,16 @@ void main() {
       },
     );
 
+    test('codec ids print identically on every compiler', () {
+      // Regression: ids embedded resolutions via toString, which renders
+      // 1.0 as "1.0" on the VM and "1" under dart2js, so a native host and
+      // a web client computed different schema hashes. The chrome suite
+      // runs this same expectation to pin the web side.
+      expect(Codecs.quantized(1).id, 'q(1e+0)');
+      expect(Codecs.quantized(0.001).id, 'q(1e-3)');
+      expect(Codecs.vec3(0.25).id, 'v3(2.5e-1)');
+    });
+
     test('vec3 round trips at resolution', () {
       final codec = Codecs.vec3(0.01);
       final w = ByteWriter();

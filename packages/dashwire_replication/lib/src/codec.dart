@@ -73,9 +73,15 @@ abstract final class Codecs {
     _eqBytes,
   );
 
+  // Codec ids embed numeric parameters in exponential form, which every
+  // compiler prints identically; plain toString renders 1.0 as "1.0" on
+  // the VM but "1" under dart2js, silently splitting the schema hash
+  // between a native host and a web client.
+  static String _res(double resolution) => resolution.toStringAsExponential();
+
   /// A double quantized to multiples of [resolution] (zigzag varint).
   static Codec<double> quantized(double resolution) => _FnCodec(
-    'q($resolution)',
+    'q(${_res(resolution)})',
     (w, v) => w.writeVarUint(_quantize(v, resolution)),
     (r) => _dequantize(r.readVarUint(), resolution),
     (a, b) => _quantize(a, resolution) == _quantize(b, resolution),
@@ -83,7 +89,7 @@ abstract final class Codecs {
 
   /// A [Vec3] with each component quantized to [resolution].
   static Codec<Vec3> vec3(double resolution) => _FnCodec(
-    'v3($resolution)',
+    'v3(${_res(resolution)})',
     (w, v) => w
       ..writeVarUint(_quantize(v.$1, resolution))
       ..writeVarUint(_quantize(v.$2, resolution))
