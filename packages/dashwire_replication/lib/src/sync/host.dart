@@ -140,6 +140,10 @@ final class ReplicationHost implements ReplicaBinding {
       (message) => _handleMessage(peer, message),
       onDone: () => _peers.remove(session.peerId),
     );
+    // Also drop the peer the moment the connection completes; done handlers
+    // run in registration order, so a later-registered handler (a room's
+    // leave callback despawning the player) never broadcasts to it.
+    session.done.whenComplete(() => _peers.remove(session.peerId));
   }
 
   /// Spawns [replica] under a fresh id (or [id], for hydration) owned by
@@ -262,6 +266,7 @@ final class ReplicationHost implements ReplicaBinding {
   }
 
   void _sendDespawn(_Peer peer, NetId id) {
+    if (!peer.session.isOpen) return;
     final w = ByteWriter(16)..writeU8(MessageKind.despawn);
     id.encode(w);
     peer.session.sendApp(Channel.reliable, w.toBytes());

@@ -43,6 +43,58 @@ void main() {
     await room.stop();
   });
 
+  test('despawning in onLeave never sends to the leaving peer', () async {
+    // Regression: the leave callback runs from the session's done future,
+    // racing the host's peer removal; despawning the leaver's entity there
+    // used to broadcast to its already-closed connection.
+    late final Room room;
+    final players = <int, PlayerReplica>{};
+    room = Room(
+      registry: testRegistry(),
+      onJoin: (session) {
+        final player = PlayerReplica();
+        room.host.spawn(player, owner: session.peerId);
+        players[session.peerId] = player;
+      },
+      onLeave: (session) {
+        final player = players.remove(session.peerId);
+        if (player?.id != null) room.host.despawn(player!.id!);
+      },
+    );
+
+    Future<(Session, ReplicationClient)> join() async {
+      final (clientEnd, serverEnd) = LoopbackConnection.pair();
+      final admitted = room.admit(serverEnd);
+      final session = await connectSession(
+        clientEnd,
+        schemaHash: testRegistry().schemaHash,
+        pingInterval: const Duration(seconds: 10),
+      );
+      await admitted;
+      return (
+        session,
+        ReplicationClient(registry: testRegistry(), session: session),
+      );
+    }
+
+    final (leaver, _) = await join();
+    final (stayer, stayerClient) = await join();
+    room.advance(1 / 30);
+    await _pump();
+    expect(stayerClient.replicas.length, 2);
+
+    // The leaver disconnects; onLeave despawns its player. No send may hit
+    // the closed connection, and the stayer sees the despawn.
+    await leaver.close();
+    await _pump();
+    room.advance(1 / 30);
+    await _pump();
+    expect(stayerClient.replicas.length, 1);
+
+    await stayer.close();
+    await room.stop();
+  });
+
   test('token verification gates admission', () async {
     final room = Room(
       registry: testRegistry(),
