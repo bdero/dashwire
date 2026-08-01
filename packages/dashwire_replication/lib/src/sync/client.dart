@@ -17,6 +17,7 @@ final class ReplicationClient implements ReplicaBinding {
   ReplicationClient({
     required this.registry,
     required this.session,
+    this.inputTargetDepth = 2,
     this.onSpawn,
     this.onDespawn,
   }) {
@@ -25,6 +26,11 @@ final class ReplicationClient implements ReplicaBinding {
 
   final ReplicaRegistry registry;
   final Session session;
+
+  /// Server-side input buffer depth (ticks) the send-ahead lead converges
+  /// to. Each buffered tick adds a tick of input latency; 2 rides out
+  /// jitter on real links, 1 suits stable or local connections.
+  final int inputTargetDepth;
 
   /// Called after a spawned replica's initial state is applied.
   final void Function(Replica replica)? onSpawn;
@@ -44,7 +50,8 @@ final class ReplicationClient implements ReplicaBinding {
   @override
   int get localPeerId => session.peerId;
 
-  ClientInputSender get _inputSender => _input ??= ClientInputSender(session);
+  ClientInputSender get _inputSender =>
+      _input ??= ClientInputSender(session, targetDepth: inputTargetDepth);
 
   /// The server tick a call to [sendInput] would target by default, one-way
   /// latency plus the adaptive send-ahead lead.
