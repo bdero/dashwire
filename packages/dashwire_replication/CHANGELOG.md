@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
 
 - `Predictor<I,S>`, a generic client-side prediction engine with input-replay reconciliation (advance per tick, roll back to an authoritative state and replay the not-yet-applied inputs).
 - `LagCompensation<K,V>`, a server-side per-tick history that rewinds tracked entities to the client-rendered tick (interpolated, capped) for lag-compensated hit resolution.

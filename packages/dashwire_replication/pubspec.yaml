@@ -1,6 +1,6 @@
 name: dashwire_replication
 description: Replicated state for dashwire. Property schema, snapshots, relevancy, spawning, RPCs, and rooms.
-version: 0.1.0
+version: 0.2.0
 repository: https://github.com/bdero/dashwire
 environment:
   sdk: ^3.10.0
