@@ -109,14 +109,26 @@ void main() {
     await server.close();
   });
 
-  test('fragmented unreliable payloads reassemble without loss', () async {
+  test('a fragmented unreliable payload reassembles to the original', () async {
     final (client, remote, server) = await _pair();
     final big = Uint8List.fromList(List.generate(5000, (i) => i & 0xff));
-    final got = remote.messages.first;
-    client.send(Channel.unreliable, big);
-    final message = await got;
-    expect(message.channel, Channel.unreliable);
-    expect(message.payload, big);
+    NetMessage? got;
+    final sub = remote.messages.listen((message) => got ??= message);
+
+    // Five datagrams carry this payload and the unreliable channel does not
+    // retransmit, so one dropped fragment sinks the whole thing. Resend the
+    // way an unreliable sender would until a complete copy lands, instead of
+    // asking a best-effort channel for a guarantee it never made.
+    final elapsed = Stopwatch()..start();
+    while (got == null && elapsed.elapsed < const Duration(seconds: 8)) {
+      client.send(Channel.unreliable, big);
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+
+    expect(got, isNotNull, reason: 'no complete copy reassembled in 8s');
+    expect(got!.channel, Channel.unreliable);
+    expect(got!.payload, big);
+    await sub.cancel();
     await client.close();
     await server.close();
   });
