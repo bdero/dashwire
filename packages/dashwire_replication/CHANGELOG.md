@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+- `Replica.snapshotTick`, the server tick of the newest snapshot that carried a replica's state. A predictor reconciling against replicated state pins it to this tick rather than to the input ack, which runs every tick while snapshots are budget-packed and can be deferred or dropped.
+- `ReplicationClient.inputLeadTicks` exposes the adaptive send-ahead lead, so a caller passing an explicit tick to `sendInput` can pace from it instead of stranding the buffer-depth control loop.
+
 ## 0.2.0
 
 - `Predictor<I,S>`, a generic client-side prediction engine with input-replay reconciliation (advance per tick, roll back to an authoritative state and replay the not-yet-applied inputs).
