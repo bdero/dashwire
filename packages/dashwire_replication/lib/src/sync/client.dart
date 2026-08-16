@@ -75,6 +75,14 @@ final class ReplicationClient implements ReplicaBinding {
   /// of the last ack. A healthy cushion sits near the sender's target depth.
   int get inputBufferDepth => _input?.bufferDepth ?? 0;
 
+  /// Ticks the input sender currently sends ahead of the server, adapted from
+  /// the server's buffer-depth feedback toward [inputTargetDepth].
+  ///
+  /// A caller passing an explicit tick to [sendInput] should pace it from
+  /// this, otherwise the send-ahead never deepens under jitter and the
+  /// server's input buffer starves.
+  int get inputLeadTicks => _inputSender.leadTicks;
+
   void _handleMessage(NetMessage message) {
     final r = ByteReader(message.payload);
     switch (r.readU8()) {
@@ -118,6 +126,7 @@ final class ReplicationClient implements ReplicaBinding {
           }
           final entry = ByteReader(r.readBytes(length));
           replica.decodeFields(entry, entry.readU32());
+          replica.markSnapshotTick(tick);
         }
         final ack = ByteWriter(8)
           ..writeU8(MessageKind.snapshotAck)

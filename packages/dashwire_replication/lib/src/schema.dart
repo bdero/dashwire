@@ -239,6 +239,23 @@ abstract base class Replica {
   /// Owning peer id (the server itself is peer 1).
   int owner = 1;
 
+  int _snapshotTick = 0;
+
+  /// Server tick of the newest snapshot that carried this replica's state, 0
+  /// before any arrives.
+  ///
+  /// Snapshots are priority-packed against a per-peer byte budget and ride
+  /// the unreliable channel, so this replica can sit several ticks behind
+  /// both the newest snapshot and the per-tick input ack. A client
+  /// reconciling prediction against this state must pin it to this tick, not
+  /// to `ReplicationClient.lastAppliedInputTick`.
+  int get snapshotTick => _snapshotTick;
+
+  @internal
+  void markSnapshotTick(int tick) {
+    if (tick > _snapshotTick) _snapshotTick = tick;
+  }
+
   @internal
   List<RepField> get fields => _fields;
 

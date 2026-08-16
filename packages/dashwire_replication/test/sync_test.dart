@@ -313,6 +313,29 @@ void main() {
       final clientB = net.clients[0].replicaById(b.id!) as DotReplica;
       // B (favored) tracks the latest; A lags far behind under starvation.
       expect(clientB.position.value.$1, greaterThan(clientA.position.value.$1));
+      // And each says which tick its state came from, so a predictor
+      // reconciling against the starved one does not pin it to a later tick.
+      expect(clientA.snapshotTick, lessThan(clientB.snapshotTick));
     },
   );
+
+  test('a replica carries the tick of the snapshot that filled it', () async {
+    final net = await _network(1);
+    final dot = DotReplica();
+    net.host.spawn(dot);
+    await net.step(2);
+
+    final client = net.clients[0].replicaById(dot.id!)!;
+    // The spawn carried the initial state, so no snapshot has filled it yet.
+    expect(client.snapshotTick, 0);
+
+    dot.position.value = (1.0, 0.0, 0.0);
+    await net.step(2);
+    final filled = client.snapshotTick;
+    expect(filled, greaterThan(0));
+
+    // Nothing changed since, so no snapshot carries it and the tick holds.
+    await net.step(2);
+    expect(client.snapshotTick, filled);
+  });
 }
