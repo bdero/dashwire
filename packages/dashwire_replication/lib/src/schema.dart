@@ -27,7 +27,30 @@ enum Authority { server, owner }
 enum ReadScope { everyone, ownerOnly, skipOwner }
 
 /// Where an RPC executes.
-enum RpcTarget { server, owner, others, all }
+enum RpcTarget {
+  /// On the server. The one direction a client may call: a client asking for
+  /// something, with the server deciding.
+  server,
+
+  /// On the replica's owner, and locally when the server is the owner.
+  owner,
+
+  /// On every client that knows the replica, the server aside.
+  others,
+
+  /// On every client that knows the replica, and on the server.
+  all,
+
+  /// On every client that knows the replica except its owner, and on the
+  /// server.
+  ///
+  /// The target for telling everyone about something its owner already knows:
+  /// the client that fired has drawn its own muzzle flash, and sending it back
+  /// is at best wasted and at worst a second flash a frame later. Distinct
+  /// from [others], which is about the *server* not receiving rather than the
+  /// owner.
+  notOwner,
+}
 
 enum Delivery { reliable, unreliable }
 

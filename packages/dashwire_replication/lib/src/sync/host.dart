@@ -440,10 +440,17 @@ final class ReplicationHost implements ReplicaBinding {
         if (peer != null) _sendRpcTo(peer, id, endpoint, args);
       case RpcTarget.others:
       case RpcTarget.all:
+      case RpcTarget.notOwner:
+        final skipOwner = endpoint.to == RpcTarget.notOwner;
         for (final peer in _peers.values) {
+          if (skipOwner && peer.session.peerId == replica.owner) continue;
           if (peer.known.contains(id)) _sendRpcTo(peer, id, endpoint, args);
         }
-        if (endpoint.to == RpcTarget.all) {
+        // `all` and `notOwner` both run on the server; `others` is defined as
+        // the server not receiving. When the server owns the replica,
+        // `notOwner` still runs locally, because the skip above is about the
+        // peer list and the server is not in it.
+        if (endpoint.to != RpcTarget.others) {
           endpoint.invokeErased(localPeerId, args);
         }
     }
