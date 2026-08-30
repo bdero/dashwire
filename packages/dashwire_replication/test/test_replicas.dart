@@ -32,6 +32,18 @@ final class PlayerReplica extends Replica {
       to: RpcTarget.all,
       onCall: (from, value) => booms.add(value),
     );
+    hit = rpc(
+      'hit',
+      codec: Codecs.varUint,
+      to: RpcTarget.notOwner,
+      onCall: (from, value) => hits.add(value),
+    );
+    quiet = rpc(
+      'quiet',
+      codec: Codecs.varUint,
+      to: RpcTarget.others,
+      onCall: (from, value) => quiets.add(value),
+    );
   }
 
   @override
@@ -45,9 +57,13 @@ final class PlayerReplica extends Replica {
   late final Rep<double> aim;
   late final RpcEndpoint<int> fire;
   late final RpcEndpoint<int> boom;
+  late final RpcEndpoint<int> hit;
+  late final RpcEndpoint<int> quiet;
 
   final fired = <(int, int)>[];
   final booms = <int>[];
+  final hits = <int>[];
+  final quiets = <int>[];
 }
 
 final class DotReplica extends Replica {

@@ -176,6 +176,57 @@ void main() {
     expect(otherSide.booms, [4]);
   });
 
+  test('a notOwner rpc reaches everyone the owner aside', () async {
+    // The client that fired has already drawn its own muzzle flash. Sending
+    // it back is wasted at best, and a second flash a frame later at worst.
+    final net = await _network(2);
+    final player = PlayerReplica();
+    final id = net.host.spawn(player, owner: net.clients[0].localPeerId);
+    await net.step();
+
+    final ownerSide = net.clients[0].replicaById(id)! as PlayerReplica;
+    final otherSide = net.clients[1].replicaById(id)! as PlayerReplica;
+
+    player.hit.call(7);
+    await _pump();
+    expect(ownerSide.hits, isEmpty, reason: 'the owner already knows');
+    expect(otherSide.hits, [7]);
+    // The server runs it too: it is not the owner here, and something has to
+    // apply the effect authoritatively.
+    expect(player.hits, [7]);
+  });
+
+  test('notOwner still runs on a server that owns the replica', () async {
+    // The skip is over the peer list, and the server is not in it. A
+    // host-owned object telling everyone about itself still tells itself.
+    final net = await _network(1);
+    final player = PlayerReplica();
+    final id = net.host.spawn(player); // Owner defaults to the server.
+    await net.step();
+
+    player.hit.call(3);
+    await _pump();
+    expect(player.hits, [3]);
+    expect((net.clients[0].replicaById(id)! as PlayerReplica).hits, [3]);
+  });
+
+  test('others is about the server, not the owner', () async {
+    // The two are easy to confuse and mean different things: others is every
+    // client including the owner, with the server left out.
+    final net = await _network(2);
+    final player = PlayerReplica();
+    final id = net.host.spawn(player, owner: net.clients[0].localPeerId);
+    await net.step();
+
+    player.quiet.call(5);
+    await _pump();
+    expect(player.quiets, isEmpty, reason: 'the server is the one left out');
+    expect((net.clients[0].replicaById(id)! as PlayerReplica).quiets, [
+      5,
+    ], reason: 'the owner is a client like any other here');
+    expect((net.clients[1].replicaById(id)! as PlayerReplica).quiets, [5]);
+  });
+
   test('spatial relevancy spawns and despawns with the view', () async {
     final net = await _network(1);
     final grid = SpatialGridFilter(cellSize: 16);
