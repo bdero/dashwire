@@ -11,6 +11,7 @@ export 'src/schema.dart'
         ReadScope,
         Rep,
         RepField,
+        RepSubscription,
         Replica,
         ReplicaRegistry,
         RpcEndpoint,
