@@ -135,6 +135,84 @@ void main() {
       expect(a.schemaHash, isNot(b.schemaHash));
     });
   });
+
+  group('change listeners', () {
+    test('a subscription can be cancelled', () {
+      // Without this, anything that subscribes is kept alive by the replica
+      // for as long as the replica lives -- which for a component on a
+      // spawned entity means until the entity despawns.
+      final player = PlayerReplica();
+      final seen = <int>[];
+      final sub = player.score.onChanged((_, next) => seen.add(next));
+
+      player.score.value = 1;
+      expect(seen, [1]);
+
+      expect(sub.isActive, isTrue);
+      sub.cancel();
+      expect(sub.isActive, isFalse);
+
+      player.score.value = 2;
+      expect(seen, [1], reason: 'cancelled listeners stop hearing');
+    });
+
+    test('cancelling twice is allowed and does nothing', () {
+      // Teardown paths run in orders nobody planned. A handle that threw on a
+      // double cancel would make correct cleanup harder than leaking.
+      final player = PlayerReplica();
+      final sub = player.score.onChanged((_, _) {});
+      sub.cancel();
+      expect(sub.cancel, returnsNormally);
+    });
+
+    test('a listener can be removed by identity', () {
+      final player = PlayerReplica();
+      final seen = <int>[];
+      void listener(int previous, int next) => seen.add(next);
+      player.score.onChanged(listener);
+
+      player.score.value = 1;
+      expect(player.score.removeListener(listener), isTrue);
+      player.score.value = 2;
+      expect(seen, [1]);
+      expect(player.score.removeListener(listener), isFalse);
+    });
+
+    test('one subscription does not cancel another', () {
+      final player = PlayerReplica();
+      final a = <int>[];
+      final b = <int>[];
+      final subA = player.score.onChanged((_, next) => a.add(next));
+      player.score.onChanged((_, next) => b.add(next));
+
+      subA.cancel();
+      player.score.value = 5;
+      expect(a, isEmpty);
+      expect(b, [5]);
+    });
+
+    test('a listener may cancel itself while being called', () {
+      // Which is what a component tearing down mid-frame does, and what
+      // dispatching over the live list would turn into a skipped listener.
+      final player = PlayerReplica();
+      final seen = <int>[];
+      final after = <int>[];
+      late final RepSubscription sub;
+      sub = player.score.onChanged((_, next) {
+        seen.add(next);
+        sub.cancel();
+      });
+      player.score.onChanged((_, next) => after.add(next));
+
+      player.score.value = 1;
+      expect(seen, [1]);
+      expect(after, [1], reason: 'the listener after it still ran');
+
+      player.score.value = 2;
+      expect(seen, [1]);
+      expect(after, [1, 2]);
+    });
+  });
 }
 
 final class _ManyFields extends Replica {

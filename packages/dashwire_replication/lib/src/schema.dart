@@ -31,6 +31,27 @@ enum RpcTarget { server, owner, others, all }
 
 enum Delivery { reliable, unreliable }
 
+/// A live subscription to a [Rep]'s changes, and the way to end it.
+///
+/// Cancelling twice is allowed and does nothing the second time: teardown
+/// paths run in orders nobody planned, and a handle that threw on a double
+/// cancel would make correct cleanup harder than leaking.
+final class RepSubscription {
+  RepSubscription._(this._cancel);
+
+  void Function()? _cancel;
+
+  /// Whether this subscription is still delivering changes.
+  bool get isActive => _cancel != null;
+
+  /// Stops delivery.
+  void cancel() {
+    final cancel = _cancel;
+    _cancel = null;
+    cancel?.call();
+  }
+}
+
 /// Type-erased base of [Rep], what the sync pipeline iterates.
 abstract base class RepField {
   RepField(
@@ -106,14 +127,33 @@ final class Rep<T> extends RepField {
     final previous = _value;
     _value = next;
     changedAt = replica.bumpVersion();
-    for (final listener in _listeners) {
+    // Over a copy: a listener that removes itself -- or another -- while the
+    // change is being dispatched is a normal thing for a component tearing
+    // down mid-frame to do, and mutating the list under the loop would skip
+    // whoever came after it.
+    for (final listener in List.of(_listeners)) {
       listener(previous, next);
     }
   }
 
   /// Calls [listener] after every applied change, local or remote.
-  void onChanged(void Function(T previous, T next) listener) =>
-      _listeners.add(listener);
+  ///
+  /// Returns a handle that stops it. Holding one is optional for a listener
+  /// that lives as long as the replica, and necessary for one that does not:
+  /// without a way to detach, anything that subscribes is kept alive by the
+  /// replica for as long as the replica lives, which for a component attached
+  /// to a spawned entity means until the entity despawns.
+  RepSubscription onChanged(void Function(T previous, T next) listener) {
+    _listeners.add(listener);
+    return RepSubscription._(() => _listeners.remove(listener));
+  }
+
+  /// Stops [listener] receiving changes.
+  ///
+  /// Identity-based, so it only works for a listener you kept a reference to;
+  /// prefer the handle [onChanged] returns, which works for a closure.
+  bool removeListener(void Function(T previous, T next) listener) =>
+      _listeners.remove(listener);
 
   @override
   @internal
