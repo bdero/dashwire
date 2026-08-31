@@ -338,4 +338,52 @@ void main() {
     await net.step(2);
     expect(client.snapshotTick, filled);
   });
+
+  test('the host reports the newest tick a peer has acknowledged', () async {
+    // What lag compensation needs: to judge a client's shot fairly the server
+    // has to rewind to the world that client could see.
+    final net = await _network(1);
+    final peer = net.clients[0].localPeerId;
+    expect(net.host.ackedTick(peer), -1, reason: 'nothing acknowledged yet');
+
+    final dot = DotReplica();
+    net.host.spawn(dot);
+    // Moving it each step is what puts a snapshot on the wire; a replica that
+    // never changes is never packed, and an unpacked tick is never acked.
+    for (var i = 0; i < 3; i++) {
+      dot.position.value = (i.toDouble(), 0.0, 0.0);
+      await net.step();
+    }
+
+    expect(net.host.ackedTick(peer), greaterThan(-1));
+    expect(net.host.ackedTick(peer), lessThanOrEqualTo(net.tick));
+  });
+
+  test('an ack that arrives late does not move it backwards', () async {
+    // Snapshots ride an unreliable channel, so acks arrive out of order. A
+    // rewind target that jumped backwards would compensate to a world the
+    // client had already moved past.
+    final net = await _network(1);
+    final peer = net.clients[0].localPeerId;
+    final dot = DotReplica();
+    net.host.spawn(dot);
+    for (var i = 0; i < 4; i++) {
+      dot.position.value = (i.toDouble(), 0.0, 0.0);
+      await net.step();
+    }
+
+    final reached = net.host.ackedTick(peer);
+    expect(reached, greaterThan(0));
+    for (var i = 0; i < 2; i++) {
+      dot.position.value = (10.0 + i, 0.0, 0.0);
+      await net.step();
+    }
+    expect(net.host.ackedTick(peer), greaterThanOrEqualTo(reached));
+  });
+
+  test('an unknown peer answers -1 rather than throwing', () async {
+    // A peer that left between the shot arriving and being judged.
+    final net = await _network(1);
+    expect(net.host.ackedTick(9999), -1);
+  });
 }

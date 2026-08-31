@@ -57,6 +57,10 @@ class _Peer {
   final Map<int, List<(NetId, int)>> pendingSnapshots = {};
   final List<int> pendingOrder = [];
 
+  /// The newest snapshot tick this peer has acknowledged, or -1 before it
+  /// acknowledges any.
+  int ackedTick = -1;
+
   /// Latest applied owner-write sequence per replica.
   final Map<NetId, int> ownerWriteSeq = {};
 
@@ -131,6 +135,20 @@ final class ReplicationHost implements ReplicaBinding {
   /// Whether the last [consumeInput] for [peerId] had to hold the previous
   /// input because the exact tick had not arrived (input starvation).
   bool inputStarved(int peerId) => _peers[peerId]?.input.starvedLast ?? false;
+
+  /// The newest snapshot tick [peerId] has acknowledged, or -1 before it has
+  /// acknowledged any (or when nothing is connected under that id).
+  ///
+  /// What a peer was last known to be looking at, which is what lag
+  /// compensation needs: to judge a client's shot fairly the server has to
+  /// rewind to the world that client could see, and this is the newest tick
+  /// it has confirmed receiving. The client renders an interpolation delay
+  /// behind that, so a compensating server subtracts its own delay from this
+  /// rather than treating it as the render tick outright.
+  ///
+  /// Monotonic: snapshots ride an unreliable channel and acks can arrive out
+  /// of order, so a late ack for an older tick never moves this backwards.
+  int ackedTick(int peerId) => _peers[peerId]?.ackedTick ?? -1;
 
   /// Starts replicating to [session] and stops when it closes.
   void attach(Session session) {
@@ -374,6 +392,10 @@ final class ReplicationHost implements ReplicaBinding {
     switch (r.readU8()) {
       case MessageKind.snapshotAck:
         final tick = r.readVarUint();
+        // Recorded before the pending lookup: an ack for a tick already
+        // dropped from the in-flight table is still an ack, and it is the
+        // newest word on where this peer has got to.
+        if (tick > peer.ackedTick) peer.ackedTick = tick;
         final sent = peer.pendingSnapshots.remove(tick);
         if (sent == null) return;
         peer.pendingOrder.remove(tick);
